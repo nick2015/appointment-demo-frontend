@@ -1,11 +1,11 @@
 import { Component } from 'react'
-import { View, Input, Button, Text } from '@tarojs/components'
+import { View, Input, Button } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import './index.scss'
 import httpClient from '@/request'
 import { IResponse } from '@/models/common/common.model'
-import { HTTP_RESPONSE_STATE } from '@/models/common/const'
-import { log } from 'console'
+import { HTTP_RESPONSE_STATE, TOKEN } from '@/models/common/const'
+import { LoginInfoDto, UserInfoDto } from '@/models/auth/auth.model'
 
 export class Login extends Component<any, any> {
   private timer: NodeJS.Timeout | null = null
@@ -48,7 +48,7 @@ export class Login extends Component<any, any> {
     try {
       Taro.showLoading({ title: '发送中...' })
 
-      const {data: resData} = await httpClient.get<IResponse<boolean>, object>(`/sendCode?phoneNumber=${ phone }`)
+      const {data: resData} = await httpClient.get<IResponse<boolean>, object>(`/auth/sendCode?phoneNumber=${ phone }`)
       if (resData.state === HTTP_RESPONSE_STATE.success) {
         Taro.hideLoading()
         Taro.showToast({ title: '验证码已发送', icon: 'success' })
@@ -86,21 +86,23 @@ export class Login extends Component<any, any> {
 
     try {
       Taro.showLoading({ title: '登录中...' })
-      
-      // 这里的 API 对应后端写的 /api/auth/login
-      // const res = await Taro.request({ ... })
-
+      const param: LoginInfoDto= {  phoneNumber: phone, smsCode: code }
+      const {data: resData} = await httpClient.post<IResponse<UserInfoDto>, LoginInfoDto>('/auth/login', param)
       Taro.hideLoading()
-      // 假设后端返回了 token
-      Taro.setStorageSync('token', 'sample_token_from_server')
-      
-      Taro.showToast({ title: '登录成功' })
-      
-      // 跳转到列表页
-      setTimeout(() => {
-        Taro.reLaunch({ url: '/pages/list/index' })
-      }, 500)
 
+      if (resData.state === HTTP_RESPONSE_STATE.success) {
+        const token = resData.data?.token
+        Taro.setStorageSync(TOKEN, token)
+        Taro.setStorageSync("userId", resData.data?.userId)
+        Taro.showToast({ title: '登录成功' })
+        
+        setTimeout(() => {
+          Taro.redirectTo({ url: '/pages/list/index' })
+        }, 500)
+      } else {
+        Taro.showToast({ title: resData.msg, icon: 'error' })
+      }
+      
     } catch (error) {
       Taro.hideLoading()
       Taro.showToast({ title: '登录失败，请检查验证码', icon: 'none' })
@@ -142,7 +144,7 @@ export class Login extends Component<any, any> {
           />
         </View>
 
-        <Button type='primary' onClick={this.handleLogin}>立即登录</Button>
+        <Button type='primary' onClick={this.handleLogin}>登录</Button>
       </View>
     )
   }

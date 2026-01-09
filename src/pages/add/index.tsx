@@ -2,13 +2,19 @@ import { Component } from 'react'
 import { View, Text, Input, Button, Picker } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import './index.scss'
+import httpClient from '@/request'
+import { IResponse } from '@/models/common/common.model'
+import { AppointmentDto } from '@/models/appointment/appointment.model'
+import { combineToDateTime, getCurrentDate } from '@/utils/time.util'
+import { HTTP_RESPONSE_STATE } from '@/models/common/const'
 
 export class Add extends Component<any, any> {
   constructor(props) {
+    const today = getCurrentDate();
     super(props)
     this.state = {
-      title: '',
-      date: '2024-01-01',
+      subject: '',
+      date: today,
       startTime: '09:00',
       endTime: '10:00'
     }
@@ -16,7 +22,7 @@ export class Add extends Component<any, any> {
 
   // 处理输入框变化
   handleInput = (e) => {
-    this.setState({ title: e.detail.value })
+    this.setState({ subject: e.detail.value })
   }
 
   // 处理选择器变化
@@ -32,12 +38,8 @@ export class Add extends Component<any, any> {
     this.setState({ endTime: e.detail.value })
   }
 
-  // 核心校验逻辑
   validateTimes = () => {
     const { startTime, endTime } = this.state
-    
-    // 直接比较字符串即可，因为 "HH:mm" 格式支持字符串比较大小
-    // 例如 "09:00" < "10:00" 是成立的
     if (endTime <= startTime) {
       Taro.showToast({
         title: '结束时间必须晚于开始时间',
@@ -50,9 +52,9 @@ export class Add extends Component<any, any> {
   }
 
   handleSave = async () => {
-    const { title, date, startTime, endTime } = this.state
+    const { subject, date, startTime, endTime } = this.state
 
-    if (!title) {
+    if (!subject) {
       Taro.showToast({ title: '请输入预约事项', icon: 'none' })
       return
     }
@@ -63,15 +65,24 @@ export class Add extends Component<any, any> {
     Taro.showLoading({ title: '保存中...' })
 
     try {
-      // 调用你的后端 API
-      // await apiSaveAppointment({ title, date, startTime, endTime })
+      const params: AppointmentDto = {
+        userId: Taro.getStorageSync("userId"),
+        subject: subject,
+        startTime: combineToDateTime(date, startTime),
+        endTime: combineToDateTime(date, endTime)
+      }
       
+      const {data: resData} = await httpClient.post<IResponse<AppointmentDto>, AppointmentDto>('/appointment/save', params)
       Taro.hideLoading()
-      Taro.showToast({ title: '预约成功' })
-      
-      setTimeout(() => {
-        Taro.navigateBack()
-      }, 1000)
+
+      if(resData.state === HTTP_RESPONSE_STATE.success) {
+        Taro.showToast({ title: '预约成功' })
+        setTimeout(() => {
+          Taro.navigateBack()
+        }, 1000)
+      } else {
+        Taro.showToast({title: `保存失败 ${resData.msg}`});
+      }
     } catch (error) {
       Taro.hideLoading()
       Taro.showToast({ title: '保存失败', icon: 'error' })
@@ -79,14 +90,14 @@ export class Add extends Component<any, any> {
   }
 
   render() {
-    const { title, date, startTime, endTime } = this.state
+    const { subject, date, startTime, endTime } = this.state
 
     return (
       <View className='add-container' style={{ padding: '20px' }}>
         <View className='form-item'>
           <Text>预约事项</Text>
           <Input 
-            value={title} 
+            value={subject} 
             onInput={this.handleInput} 
             placeholder='填写事项名称' 
             style={{ borderBottom: '1px solid #eee', marginBottom: '15px' }}

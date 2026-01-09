@@ -2,9 +2,13 @@ import { Component } from 'react'
 import { View, Text, Button, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import './index.scss'
+import { AppointmentDto } from '@/models/appointment/appointment.model'
+import { IResponse } from '@/models/common/common.model'
+import httpClient from '@/request'
+import { splitFromDateTime } from '@/utils/time.util'
 
 export class List extends Component<any, any> {
-  
+
   constructor(props) {
     super(props)
     this.state = {
@@ -19,39 +23,15 @@ export class List extends Component<any, any> {
 
   // 获取后端数据
   fetchData = async () => {
+
+    const userId = Taro.getStorageSync("userId");
+
     try {
       Taro.showLoading({ title: '加载中...' })
       
-      /* // 实际调用后端 API
-      const res = await Taro.request({
-        url: 'https://your-api.com/api/appointments',
-        method: 'GET',
-        header: {
-          'Authorization': `Bearer ${Taro.getStorageSync('token')}`
-        }
-      })
-      this.setState({ appointments: res.data })
-      */
+      const {data: resData} = await httpClient.get<IResponse<AppointmentDto[]>, unknown>(`/appointment/list?userId=${ userId }`)
 
-      // 模拟数据结构，匹配 Add 页面的输入
-      const mockData = [
-        {
-          id: 1,
-          title: '牙医诊疗',
-          appointmentDate: '2024-05-20',
-          startTime: '10:00',
-          endTime: '11:30'
-        },
-        {
-          id: 2,
-          title: '健身私教课',
-          appointmentDate: '2024-05-21',
-          startTime: '14:00',
-          endTime: '15:00'
-        }
-      ]
-      
-      this.setState({ appointments: mockData })
+      this.setState({ appointments: resData.data || [] })
       Taro.hideLoading()
     } catch (error) {
       Taro.hideLoading()
@@ -75,7 +55,11 @@ export class List extends Component<any, any> {
         
         <ScrollView scrollY style={{ height: 'calc(100vh - 120px)' }}>
           {appointments.length > 0 ? (
-            appointments.map((item) => (
+            appointments.map((item) => {
+              const start = splitFromDateTime(item.startTime);
+              const end = splitFromDateTime(item.endTime);
+              
+              return (
               <View 
                 key={item.id} 
                 style={{ 
@@ -83,24 +67,23 @@ export class List extends Component<any, any> {
                   borderRadius: '8px', 
                   padding: '15px', 
                   marginBottom: '12px',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
                 }}
               >
                 <View style={{ fontSize: '16px', fontWeight: 'bold', color: '#333', marginBottom: '8px' }}>
-                  {item.title}
+                  {item.subject}
                 </View>
                 
                 <View style={{ fontSize: '14px', color: '#666', display: 'flex', flexDirection: 'column' }}>
-                  <Text>日期：{item.appointmentDate}</Text>
+                  <Text>日期：{start.date}</Text>
                   <View style={{ marginTop: '4px' }}>
                     <Text>时间：</Text>
                     <Text style={{ color: '#007aff', fontWeight: '500' }}>
-                      {item.startTime} ~ {item.endTime}
+                      {start.time} ~ {end.time}
                     </Text>
                   </View>
                 </View>
               </View>
-            ))
+            )})
           ) : (
             <View style={{ textAlign: 'center', marginTop: '100px', color: '#999' }}>暂无预约记录</View>
           )}
