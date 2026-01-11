@@ -20,22 +20,18 @@ export class Login extends Component<any, any> {
     }
   }
 
-  // 组件销毁时清除定时器，防止内存泄漏
   componentWillUnmount() {
     if (this.timer) clearInterval(this.timer)
   }
 
-  // 处理手机号输入
   handlePhoneInput = (e) => {
     this.setState({ phone: e.detail.value })
   }
 
-  // 处理验证码输入
   handleCodeInput = (e) => {
     this.setState({ code: e.detail.value })
   }
 
-  // 发送验证码逻辑
   sendSmsCode = async () => {
     const { phone, isCounting } = this.state
 
@@ -75,7 +71,6 @@ export class Login extends Component<any, any> {
     }
   }
 
-  // 登录提交逻辑
   handleLogin = async () => {
     const { phone, code } = this.state
 
@@ -128,7 +123,7 @@ export class Login extends Component<any, any> {
             size='mini'
             disabled={isCounting}
             onClick={this.sendSmsCode}
-            style={{ fontSize: '12px', width: '100px' }}
+            style={{ fontSize: '12px', width: '100px', color: '#999' }}
           >
             {isCounting ? `${count}s` : '获取验证码'}
           </Button>

@@ -6,6 +6,8 @@ import { AppointmentDto } from '@/models/appointment/appointment.model'
 import { IResponse } from '@/models/common/common.model'
 import httpClient from '@/request'
 import { splitFromDateTime } from '@/utils/time.util'
+import { CommonEvent } from '@tarojs/components/types/common';
+import { HTTP_RESPONSE_STATE } from '@/models/common/const'
 
 export class List extends Component<any, any> {
 
@@ -22,7 +24,7 @@ export class List extends Component<any, any> {
   }
 
   // 获取后端数据
-  fetchData = async () => {
+  async fetchData() {
 
     const userId = Taro.getStorageSync("userId");
 
@@ -40,10 +42,48 @@ export class List extends Component<any, any> {
   }
 
   // 跳转到添加页面
-  goToAdd = () => {
+  goToAdd() {
     Taro.navigateTo({
       url: '/pages/add/index'
     })
+  }
+
+  onItemPress(appointment: AppointmentDto, event: CommonEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    Taro.vibrateShort();
+    Taro.showModal({
+      title: '提示',
+      content: '确认要删除该预约？'
+    }).then((res) => {
+      if (res.confirm) {
+        this.handleDelete(appointment && appointment.id);
+      }
+    });
+  }
+
+  async handleDelete(id: string | undefined) {
+    Taro.showLoading({
+      title: '请稍后...',
+      mask: true
+    });
+
+    const { data: resData } = await httpClient.delete<IResponse<unknown>, unknown>(`/appointment/delete?id=${id}`)
+    Taro.hideLoading();
+
+    if (resData.state === HTTP_RESPONSE_STATE.success) {
+      Taro.showToast({
+        title: '删除成功',
+        icon: 'success',
+      });
+      this.fetchData();
+    } else {
+      Taro.showToast({
+        title: resData.msg,
+        icon: 'error',
+      });
+    }
   }
 
   render() {
@@ -61,6 +101,7 @@ export class List extends Component<any, any> {
               
               return (
               <View 
+                onLongPress={this.onItemPress.bind(this, item)}
                 key={item.id} 
                 style={{ 
                   backgroundColor: '#fff', 
